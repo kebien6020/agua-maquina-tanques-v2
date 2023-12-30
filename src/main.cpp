@@ -13,9 +13,10 @@ using namespace kev::literals;
 using kev::Timestamp;
 
 auto led_output = Output<LED_BUILTIN>{};
-auto out_fill_pump = Output<3>{};
-auto out_recir_pump = Output<4>{};
-auto out_ingress_valve = Output<5>{};
+auto out_fill_pump = OutputLow<23>{};
+auto out_recir_pump_a = OutputLow<4>{};
+auto out_ingress_valve_a = OutputLow<5>{};
+auto in_sensor_hi_a = InputLow<22>{};
 
 auto led_timer = kev::Timer{1_s};
 
@@ -23,20 +24,23 @@ auto persist_state_tank_a = PersistByte<0>{};
 auto persist_state_tank_b = PersistByte<1>{};
 
 auto tank_a_sm = TankSM<decltype(out_fill_pump),
-						decltype(out_recir_pump),
-						decltype(out_ingress_valve),
+						decltype(out_recir_pump_a),
+						decltype(out_ingress_valve_a),
+						decltype(in_sensor_hi_a),
 						decltype(persist_state_tank_a)>{
-	"tank_a", out_fill_pump, out_recir_pump, out_ingress_valve,
-	persist_state_tank_a};
+	"tank_a",       out_fill_pump,       out_recir_pump_a, out_ingress_valve_a,
+	in_sensor_hi_a, persist_state_tank_a};
 
 auto tank_b_sm = TankSM<decltype(out_fill_pump),
-						decltype(out_recir_pump),
-						decltype(out_ingress_valve),
+						decltype(out_recir_pump_a),
+						decltype(out_ingress_valve_a),
+						decltype(in_sensor_hi_a),
 						decltype(persist_state_tank_b)>{
-	"tank_b", out_fill_pump, out_recir_pump, out_ingress_valve,
-	persist_state_tank_b};
+	"tank_b",       out_fill_pump,       out_recir_pump_a, out_ingress_valve_a,
+	in_sensor_hi_a, persist_state_tank_b};
 
-auto ui = UiSm<>{Serial3};
+auto ui = UiSm<decltype(tank_a_sm), decltype(tank_b_sm)>{Serial3, tank_a_sm,
+														 tank_b_sm};
 
 auto ui_serial =
 	UiSerial<decltype(tank_a_sm), decltype(tank_b_sm)>{tank_a_sm, tank_b_sm};
@@ -64,7 +68,7 @@ auto main() -> int {
 
 		tank_a_sm.tick(now);
 		tank_b_sm.tick(now);
-		ui.tick();
+		ui.tick(now);
 		ui_serial.tick();
 
 		serial_log(now);

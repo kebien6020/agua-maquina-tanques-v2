@@ -1,14 +1,17 @@
 #pragma once
+#include "Edge.h"
 #include "Log.h"
 #include "Timer.h"
 
 using namespace kev::literals;
+using kev::Edge;
+using kev::Timer;
 using kev::Timestamp;
 
 constexpr auto TIME_PRE_FILL = 3_s;
 constexpr auto TIME_FILL_FAILSAFE = 27_min;
-constexpr auto TIME_CHEM1 = 5_min;
-constexpr auto TIME_CHEM2 = 40_min;
+constexpr auto TIME_CHEM1 = 40_min;
+constexpr auto TIME_CHEM2 = 5_min;
 
 enum struct TankState {
 	INITIAL,
@@ -26,17 +29,20 @@ enum struct TankState {
 template <class OutFillPump,
 		  class OutRecirPump,
 		  class OutIngressValve,
+		  class InSensorHi,
 		  class StateSaver>
 struct TankSM {
 	TankSM(char const* name,
 		   OutFillPump& out_fill_pump,
 		   OutRecirPump& out_recir_pump,
 		   OutIngressValve& out_ingress_valve,
+		   InSensorHi& in_sensor_hi,
 		   StateSaver& state_saver)
 		: log{name},
 		  out_fill_pump{out_fill_pump},
 		  out_recir_pump{out_recir_pump},
 		  out_ingress_valve{out_ingress_valve},
+		  in_sensor_hi{in_sensor_hi},
 		  state_saver{state_saver} {}
 
 	auto event_next() -> void {
@@ -100,6 +106,8 @@ struct TankSM {
 	}
 
 	auto tick(Timestamp now) -> void {
+		in_sensor_hi_edge.update();
+
 		if (changed()) {
 			handle_state_changed(now);
 		}
@@ -128,6 +136,24 @@ struct TankSM {
 		log.partial_end();
 	}
 
+	auto display_fill_timer(Timestamp now) -> String {
+		if (state != TankState::FILLING)
+			return "N/A";
+		return format_timer(fill_timer, now);
+	}
+
+	auto display_chem1_timer(Timestamp now) -> String {
+		if (state != TankState::CHEM_1)
+			return "N/A";
+		return format_timer(chem1_timer, now);
+	}
+
+	auto display_chem2_timer(Timestamp now) -> String {
+		if (state != TankState::CHEM_2)
+			return "N/A";
+		return format_timer(chem2_timer, now);
+	}
+
 	auto restore_state() -> void {
 		auto const saved = state_saver.read();
 		log("Restoring state, raw value = ", saved);
@@ -138,8 +164,26 @@ struct TankSM {
 		}
 		set_state(parsed);
 	}
+	auto get_state() -> TankState { return state; }
 
    private:
+	auto format_timer(Timer& t, Timestamp now) -> String {
+		return format_seconds(t.elapsedSec(now)) + "/" +
+			   format_seconds(t.totalSec());
+	}
+
+	auto format_seconds(long sec) -> String {
+		auto min = sec / 60;
+		auto s = sec % 60;
+		return pad2(min) + ":" + pad2(s);
+	}
+
+	auto pad2(long n) -> String {
+		if (n >= 10 || n < 0)
+			return String{n};
+		return "0" + String{n};
+	}
+
 	auto handle_state_changed(Timestamp now) -> void {
 		switch (state) {
 		case TankState::INITIAL: {
@@ -159,6 +203,12 @@ struct TankSM {
 			out_recir_pump = true;
 			chem1_timer.reset(now);
 		}; break;
+		case TankState::CHEM_2: {
+			out_ingress_valve = false;
+			out_fill_pump = false;
+			out_recir_pump = true;
+			chem2_timer.reset(now);
+		}; break;
 		}
 
 		// On next tick do not handle as a change
@@ -174,6 +224,9 @@ struct TankSM {
 		case TankState::FILLING: {
 			if (fill_timer.isDone(now)) {
 				log("Alerta: Finalizando llenado por tiempo de seguridad");
+				set_state(TankState::WAITING_CHEM_1);
+			}
+			if (in_sensor_hi_edge.risingEdge()) {
 				set_state(TankState::WAITING_CHEM_1);
 			}
 		}; break;
@@ -238,13 +291,16 @@ struct TankSM {
 	OutFillPump& out_fill_pump;
 	OutRecirPump& out_recir_pump;
 	OutIngressValve& out_ingress_valve;
+	InSensorHi& in_sensor_hi;
 	StateSaver& state_saver;
+
+	Edge<InSensorHi> in_sensor_hi_edge{in_sensor_hi};
 
 	TankState state = {};
 	TankState prev_state = {};
 
-	kev::Timer pre_fill_timer{TIME_PRE_FILL};
-	kev::Timer fill_timer{TIME_FILL_FAILSAFE};
-	kev::Timer chem1_timer{TIME_CHEM1};
-	kev::Timer chem2_timer{TIME_CHEM2};
+	Timer pre_fill_timer{TIME_PRE_FILL};
+	Timer fill_timer{TIME_FILL_FAILSAFE};
+	Timer chem1_timer{TIME_CHEM1};
+	Timer chem2_timer{TIME_CHEM2};
 };
