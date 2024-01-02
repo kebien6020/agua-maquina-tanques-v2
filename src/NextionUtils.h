@@ -13,7 +13,7 @@ auto receiveRaw(SerialT& serial, int timeout = 1000) -> String {
 		while (serial.available()) {
 			auto const b = serial.read();
 			s.concat((char)b);
-			if (uint8_t{b} == 0xFF) {
+			if (static_cast<uint8_t>(b) == 0xFF) {
 				consecutiveFF++;
 			} else {
 				consecutiveFF = 0;

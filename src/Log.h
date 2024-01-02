@@ -1,13 +1,15 @@
 #pragma once
 #include "HardwareSerial.h"
 
+#define INLINE __attribute__((always_inline)) inline
+
 template <class... Args>
-auto print(Args... args) -> void {
+INLINE auto print(Args... args) -> void {
 	(Serial.print(args), ...);
 }
 
 template <class... Args>
-auto println(Args... args) -> void {
+INLINE auto println(Args... args) -> void {
 	print(args..., '\n');
 }
 
@@ -16,28 +18,28 @@ struct Log {
 	Log(char const* name) : name{name} {}
 
 	template <class... Args>
-	auto operator()(Args... args) -> void {
+	INLINE auto operator()(Args... args) -> void {
 		if constexpr (enabled) {
 			println('[', name, ']', ' ', args...);
 		}
 	}
 
 	template <class... Args>
-	auto partial_start() -> void {
+	INLINE auto partial_start() -> void {
 		if constexpr (enabled) {
 			print('[', name, ']', ' ');
 		}
 	}
 
 	template <class... Args>
-	auto partial_end() -> void {
+	INLINE auto partial_end() -> void {
 		if constexpr (enabled) {
 			println();
 		}
 	}
 
 	template <class... Args>
-	auto partial(Args... args) -> void {
+	INLINE auto partial(Args... args) -> void {
 		if constexpr (enabled) {
 			print(args...);
 		}

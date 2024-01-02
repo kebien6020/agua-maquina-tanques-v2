@@ -117,6 +117,10 @@ struct TankSM {
 	auto log_debug(Timestamp now) {
 		log.partial_start();
 		log.partial("State = ", state_text());
+		log.partial(", In: ", in_sensor_hi_edge.value() ? "HI " : "   ");
+		log.partial(", Out: ", out_fill_pump ? "FIL " : "    ",
+					out_ingress_valve ? "VAL " : "    ",
+					out_recir_pump ? "RCR " : "    ");
 		if (state == TankState::PRE_FILL) {
 			log.partial(", Pre-fill timer = ", pre_fill_timer.elapsedSec(now),
 						"/", pre_fill_timer.totalSec());
@@ -209,6 +213,10 @@ struct TankSM {
 			out_recir_pump = true;
 			chem2_timer.reset(now);
 		}; break;
+		case TankState::WAITING_CHEM_1:
+		case TankState::WAITING_CHEM_2:
+		case TankState::WAITING_IN_USE: stop_all(); break;
+		case TankState::LAST: log("Error, state LAST should not be set");
 		}
 
 		// On next tick do not handle as a change
@@ -240,6 +248,11 @@ struct TankSM {
 				set_state(TankState::WAITING_CHEM_2);
 			}
 		}; break;
+		case TankState::INITIAL:
+		case TankState::WAITING_CHEM_1:
+		case TankState::WAITING_CHEM_2:
+		case TankState::WAITING_IN_USE: break;
+		case TankState::LAST: log("Error, state LAST should not be set");
 		}
 	}
 

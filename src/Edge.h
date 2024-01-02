@@ -25,10 +25,12 @@ class Edge {
 
 	auto changed() -> bool { return prev != curr; }
 
+	auto value() -> bool { return curr; }
+
    private:
+	Reader& reader;
 	bool prev;
 	bool curr;
-	Reader& reader;
 };
 
 }  // namespace kev

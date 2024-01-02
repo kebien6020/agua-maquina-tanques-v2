@@ -19,6 +19,7 @@ enum struct UiState {
 	WAITING_TANK_B = 2,
 	STATUS = 3,
 	ADVANCED = 4,
+	AQUEDUCT = 5,
 
 	LAST,
 };
@@ -66,6 +67,7 @@ struct UiSm {
 				update_status(now);
 			}
 		}; break;
+		default: break;  // noop
 		}
 	}
 
@@ -194,6 +196,7 @@ struct UiSm {
 		case UiState::WAITING_TANK_B: return "WAITING_TANK_B";
 		case UiState::STATUS: return "STATUS";
 		case UiState::ADVANCED: return "ADVANCED";
+		case UiState::AQUEDUCT: return "AQUEDUCT";
 		case UiState::LAST: return "LAST (error)";
 		}
 		return "UNKNOWN (error)";
@@ -221,6 +224,7 @@ struct UiSm {
 		case UiTank::B: return state_display_impl(tank_b_sm);
 		}
 		log("Error during state_display");
+		return "Error de programa, informar";
 	}
 
 	template <class TankSM>
@@ -246,6 +250,7 @@ struct UiSm {
 		case UiTank::B: return additional_display_impl(tank_b_sm, now);
 		}
 		log("Error during additional_display");
+		return "Error de programa, informar";
 	}
 
 	template <class TankSM>
@@ -274,6 +279,7 @@ struct UiSm {
 		case UiTank::B: return confirm_display_impl(tank_b_sm);
 		}
 		log("Error during confirm_display");
+		return "Error de programa, informar";
 	}
 
 	template <class TankSM>
