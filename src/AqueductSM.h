@@ -77,6 +77,10 @@ struct AqueductSM {
 		log("State = ", state_text(), ", Sensor Hi = ", sensor_hi_text());
 	}
 
+	[[nodiscard]] auto get_state() const -> AqState { return state; }
+	[[nodiscard]] auto get_valve() const -> bool { return out_ingress_valve; }
+	[[nodiscard]] auto get_pump() const -> bool { return out_pump; }
+
    private:
 	auto set_state(AqState s) {
 		state = s;

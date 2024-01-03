@@ -1,11 +1,11 @@
-#include "SharedOutput.h"
-constexpr auto version = "Version 0.1 (01/Ene/2024)";
+constexpr auto version = "Version 1.0 (03/Ene/2024)";
 
 #include <Arduino.h>
 #include "AqueductSM.h"
 #include "DirectIO.h"
 #include "HardwareSerial.h"
 #include "Persist.h"
+#include "SharedOutput.h"
 #include "TankSM.h"
 #include "Timer.h"
 #include "UiSerial.h"
@@ -64,8 +64,8 @@ auto aqueduct_sm = AqueductSM<decltype(out_aq_ingress_valve),
 							  decltype(in_aq_sensor_hi)>{
 	out_aq_ingress_valve, out_aq_pump, in_aq_sensor_hi};
 
-auto ui = UiSm<decltype(tank_a_sm), decltype(tank_b_sm)>{Serial3, tank_a_sm,
-														 tank_b_sm};
+auto ui = UiSm<decltype(tank_a_sm), decltype(tank_b_sm), decltype(aqueduct_sm)>{
+	Serial3, tank_a_sm, tank_b_sm, aqueduct_sm};
 
 auto ui_serial =
 	UiSerial<decltype(tank_a_sm), decltype(tank_b_sm), decltype(aqueduct_sm)>{

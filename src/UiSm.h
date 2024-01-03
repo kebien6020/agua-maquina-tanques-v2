@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AqueductSM.h"
 #include "Arduino.h"
 #include "HardwareSerial.h"
 #include "Log.h"
@@ -29,10 +30,19 @@ enum struct UiTank {
 	B,
 };
 
-template <class TankASM, class TankBSM, class SerialT = HardwareSerial>
+template <class TankASM,
+		  class TankBSM,
+		  class AqueductSM,
+		  class SerialT = HardwareSerial>
 struct UiSm {
-	UiSm(SerialT& serial, TankASM& tank_a_sm, TankBSM& tank_b_sm)
-		: serial{serial}, tank_a_sm{tank_a_sm}, tank_b_sm{tank_b_sm} {}
+	UiSm(SerialT& serial,
+		 TankASM& tank_a_sm,
+		 TankBSM& tank_b_sm,
+		 AqueductSM& aqueduct_sm)
+		: serial{serial},
+		  tank_a_sm{tank_a_sm},
+		  tank_b_sm{tank_b_sm},
+		  aqueduct_sm{aqueduct_sm} {}
 	auto init() -> void {
 		serial.begin(9600);
 		serial.print("baud=115200\xFF\xFF\xFF");
@@ -67,6 +77,12 @@ struct UiSm {
 				update_status(now);
 			}
 		}; break;
+		case UiState::AQUEDUCT: {
+			if (aq_update_timer.isDone(now)) {
+				aq_update_timer.reset(now);
+				update_aqueduct();
+			}
+		}; break;
 		default: break;  // noop
 		}
 	}
@@ -81,6 +97,22 @@ struct UiSm {
 		serial.print(static_cast<int>(UiState::STATUS));
 		serial.print("\xFF\xFF\xFF");
 		recvRetCommandFinished(serial);
+	}
+
+	auto update_aqueduct() -> void {
+		log("Updating aqueduct screen");
+		set_text("t5_1", aq_status_display());
+		set_button_val("bt0", aqueduct_sm.get_valve());
+		set_button_val("bt1", aqueduct_sm.get_pump());
+	}
+
+	auto aq_status_display() -> char const* {
+		switch (aqueduct_sm.get_state()) {
+		case AqState::STOPPED: return "Detenido";
+		case AqState::FILLING: return "Llenando";
+		case AqState::FILLING_PUMP: return "Llenando con Bomba";
+		}
+		return "Error de programa, informar";
 	}
 
 	auto update_status(Timestamp now) -> void {
@@ -143,6 +175,41 @@ struct UiSm {
 			event_force_prev();
 		if (page == 4 && id == 1)
 			event_force_next();
+		if (page == 5 && id == 3) {
+			auto pressed = get_button_val("bt0");
+			if (pressed)
+				aqueduct_sm.event_valve_on();
+			else
+				aqueduct_sm.event_valve_off();
+		}
+		if (page == 5 && id == 4) {
+			auto pressed = get_button_val("bt1");
+			if (pressed)
+				aqueduct_sm.event_pump_on();
+			else
+				aqueduct_sm.event_pump_off();
+		}
+	}
+
+	auto get_button_val(char const* id) -> bool {
+		serial.print("get ");
+		serial.print(id);
+		serial.print(".val\xFF\xFF\xFF");
+		uint32_t ret = 0;
+		if (!recvRetNumber(serial, &ret)) {
+			log("Error reading button state for ", id);
+			return false;
+		}
+		return ret;
+	}
+
+	auto set_button_val(char const* id, bool val) -> void {
+		serial.print(id);
+		serial.print(".val=");
+		serial.print(val ? 1 : 0);
+		serial.print("\xFF\xFF\xFF");
+
+		recvRetCommandFinished(serial);
 	}
 
 	auto event_next() -> void {
@@ -302,8 +369,10 @@ struct UiSm {
 	HardwareSerial& serial;
 	TankASM& tank_a_sm;
 	TankBSM& tank_b_sm;
+	AqueductSM& aqueduct_sm;
 	Log<> log{"ui"};
 
 	UiTank tank = UiTank::A;
 	Timer status_update_timer = {1_s};
+	Timer aq_update_timer = {1_s};
 };
