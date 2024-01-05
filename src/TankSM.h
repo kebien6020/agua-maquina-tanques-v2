@@ -1,4 +1,5 @@
 #pragma once
+#include <Arduino.h>
 #include "Edge.h"
 #include "Log.h"
 #include "Mutex.h"
@@ -33,6 +34,7 @@ template <class OutFillPump,
 		  class OutIngressValve,
 		  class OutProcessValve,
 		  class InSensorHi,
+		  class InAqSensorLo,
 		  class StateSaver>
 struct TankSM {
 	TankSM(char const* name,
@@ -41,6 +43,7 @@ struct TankSM {
 		   OutIngressValve& out_ingress_valve,
 		   OutProcessValve& out_process_valve,
 		   InSensorHi& in_sensor_hi,
+		   InAqSensorLo& in_aq_sensor_lo,
 		   StateSaver& state_saver,
 		   Mutex& in_process_mutex)
 		: log{name},
@@ -48,8 +51,10 @@ struct TankSM {
 		  out_recir_pump{out_recir_pump},
 		  out_ingress_valve{out_ingress_valve},
 		  out_process_valve{out_process_valve},
-		  in_sensor_hi{in_sensor_hi},
-		  state_saver{state_saver} {}
+		  in_sensor_hi_edge{in_sensor_hi},
+		  in_aq_sensor_lo_edge{in_aq_sensor_lo},
+		  state_saver{state_saver},
+		  in_process_mutex{in_process_mutex} {}
 
 	auto event_next() -> void {
 		switch (state) {
@@ -57,8 +62,9 @@ struct TankSM {
 		case TankState::WAITING_CHEM_1: set_state(TankState::CHEM_1); break;
 		case TankState::WAITING_CHEM_2: set_state(TankState::CHEM_2); break;
 		case TankState::WAITING_IN_PROCESS:
-			set_state(TankState::INITIAL);
+			set_state(TankState::IN_PROCESS);
 			break;
+		case TankState::IN_PROCESS: set_state(TankState::INITIAL); break;
 		default: log("Ignoring event_next in state ", state_text()); break;
 		}
 	}
@@ -69,6 +75,9 @@ struct TankSM {
 		case TankState::FILLING: set_state(TankState::INITIAL); break;
 		case TankState::CHEM_1: set_state(TankState::WAITING_CHEM_1); break;
 		case TankState::CHEM_2: set_state(TankState::WAITING_CHEM_2); break;
+		case TankState::IN_PROCESS:
+			set_state(TankState::WAITING_IN_PROCESS);
+			break;
 		default: log("Ignoring event_cancel in state ", state_text()); break;
 		}
 	}
@@ -81,6 +90,9 @@ struct TankSM {
 			break;
 		case TankState::WAITING_CHEM_2:
 			set_state(TankState::WAITING_IN_PROCESS);
+			break;
+		case TankState::WAITING_IN_PROCESS:
+			set_state(TankState::INITIAL);
 			break;
 		default:
 			log("Ignoring event_force_next_stage in state ", state_text());
@@ -128,6 +140,7 @@ struct TankSM {
 		log.partial_start();
 		log.partial("State = ", state_text());
 		log.partial(", In: ", in_sensor_hi_edge.value() ? "HI " : "   ");
+		log.partial(in_aq_sensor_lo_edge.value() ? "LO " : "   ");
 		log.partial(", Out: ", out_fill_pump ? "FIL " : "    ",
 					out_ingress_valve ? "VAL " : "    ",
 					out_recir_pump ? "RCR " : "    ");
@@ -147,6 +160,8 @@ struct TankSM {
 			log.partial(", Chem2 timer = ", chem2_timer.elapsedSec(now), "/",
 						chem2_timer.totalSec());
 		}
+		log.partial(", in_process_mutex = ",
+					in_process_mutex.current() ? "LOCKED " : "UNLOCKED ");
 		log.partial_end();
 	}
 
@@ -226,12 +241,16 @@ struct TankSM {
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
 		case TankState::WAITING_IN_PROCESS: stop_all(); break;
+		case TankState::IN_PROCESS: {
+			out_process_valve = true;
+		}; break;
 		case TankState::LAST: log("Error, state LAST should not be set");
 		}
 
 		// On next tick do not handle as a change
 		prev_state = state;
 	}
+
 	auto state_transitions(Timestamp now) -> void {
 		switch (state) {
 		case TankState::PRE_FILL: {
@@ -261,8 +280,9 @@ struct TankSM {
 		case TankState::INITIAL:
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
-		case TankState::WAITING_IN_PROCESS: break;
-		case TankState::LAST: log("Error, state LAST should not be set");
+		case TankState::WAITING_IN_PROCESS:
+		case TankState::IN_PROCESS: break;
+		case TankState::LAST: log("Error, state LAST should not be set"); break;
 		}
 	}
 
@@ -274,9 +294,21 @@ struct TankSM {
 		out_ingress_valve = false;
 	}
 
-	auto set_state(TankState s) -> void {
+	auto set_state(TankState requested_state) -> void {
+		if (requested_state == TankState::IN_PROCESS &&
+			in_process_mutex.try_lock() != MutexError::SUCCESS) {
+			log("Not setting in process because the in_process_mutex is "
+				"locked");
+			return;
+		}
+
 		prev_state = state;
-		state = s;
+		state = requested_state;
+
+		if (prev_state == TankState::IN_PROCESS &&
+			state != TankState::IN_PROCESS) {
+			in_process_mutex.unlock();
+		}
 
 		if (state_should_be_persisted()) {
 			persist_state();
@@ -303,7 +335,8 @@ struct TankSM {
 		case TankState::CHEM_1: return "CHEM_1";
 		case TankState::WAITING_CHEM_2: return "WAITING_CHEM_2";
 		case TankState::CHEM_2: return "CHEM_2";
-		case TankState::WAITING_IN_PROCESS: return "WAITING_IN_USE";
+		case TankState::WAITING_IN_PROCESS: return "WAITING_IN_PROCESS";
+		case TankState::IN_PROCESS: return "IN_PROCESS";
 		case TankState::LAST: return "LAST (ERROR)";
 		}
 		return "INVALID";
@@ -315,11 +348,10 @@ struct TankSM {
 	OutRecirPump& out_recir_pump;
 	OutIngressValve& out_ingress_valve;
 	OutProcessValve& out_process_valve;
-	InSensorHi& in_sensor_hi;
+	Edge<InSensorHi> in_sensor_hi_edge;
+	Edge<InAqSensorLo> in_aq_sensor_lo_edge;
 	StateSaver& state_saver;
 	Mutex& in_process_mutex;
-
-	Edge<InSensorHi> in_sensor_hi_edge{in_sensor_hi};
 
 	TankState state = {};
 	TankState prev_state = {};

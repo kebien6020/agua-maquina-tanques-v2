@@ -16,6 +16,8 @@ struct Mutex {
 
 	inline auto unlock() -> void { locked = false; }
 
+	inline auto current() const -> bool { return locked; }
+
    private:
 	bool locked = false;
 };

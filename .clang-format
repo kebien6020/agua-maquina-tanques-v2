@@ -1,0 +1,10 @@
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Chromium
+
+AllowShortCaseLabelsOnASingleLine: true
+IndentCaseLabels: false
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForContinuationAndIndentation
+QualifierAlignment: Right # east const
+

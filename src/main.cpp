@@ -1,4 +1,4 @@
-constexpr auto version = "Version 1.0 (03/Ene/2024)";
+constexpr auto version = "Version 1.1 (05/Ene/2024)";
 
 #include <Arduino.h>
 #include "AqueductSM.h"
@@ -28,18 +28,18 @@ auto in_process_mutex = Mutex{};
 
 auto out_recir_pump_a = OutputLow<29>{};
 auto out_ingress_valve_a = OutputLow<23>{};
-auto out_process_valve_a = OutputLow<10>{};
+auto out_process_valve_a = OutputLow<9>{};
 auto in_sensor_hi_a = InputLow<22>{};
 
 auto out_recir_pump_b = OutputLow<31>{};
 auto out_ingress_valve_b = OutputLow<25>{};
-auto out_process_valve_b = OutputLow<11>{};
+auto out_process_valve_b = OutputLow<10>{};
 auto in_sensor_hi_b = InputLow<24>{};
 
 auto out_aq_ingress_valve = OutputLow<27>{};
 auto out_aq_pump = OutputLow<33>{};
 auto in_aq_sensor_hi = InputLow<26>{};
-auto in_aq_sensor_lo = InputLow<28>{};
+auto in_aq_sensor_lo = InputLow<32>{};
 
 auto led_timer = kev::Timer{1_s};
 
@@ -49,20 +49,38 @@ auto persist_state_tank_b = PersistByte<1>{};
 auto tank_a_sm = TankSM<decltype(out_fill_pump_shared_a),
 						decltype(out_recir_pump_a),
 						decltype(out_ingress_valve_a),
+						decltype(out_process_valve_a),
 						decltype(in_sensor_hi_a),
+						decltype(in_aq_sensor_lo),
 						decltype(persist_state_tank_a)>{
-	"tank_a",         out_fill_pump_shared_a,
-	out_recir_pump_a, out_ingress_valve_a,
-	in_sensor_hi_a,   persist_state_tank_a};
+	"tank_a",
+	out_fill_pump_shared_a,
+	out_recir_pump_a,
+	out_ingress_valve_a,
+	out_process_valve_a,
+	in_sensor_hi_a,
+	in_aq_sensor_lo,
+	persist_state_tank_a,
+	in_process_mutex,
+};
 
 auto tank_b_sm = TankSM<decltype(out_fill_pump_shared_b),
 						decltype(out_recir_pump_b),
 						decltype(out_ingress_valve_b),
+						decltype(out_process_valve_b),
 						decltype(in_sensor_hi_b),
+						decltype(in_aq_sensor_lo),
 						decltype(persist_state_tank_b)>{
-	"tank_b",         out_fill_pump_shared_b,
-	out_recir_pump_b, out_ingress_valve_b,
-	in_sensor_hi_b,   persist_state_tank_b};
+	"tank_b",
+	out_fill_pump_shared_b,
+	out_recir_pump_b,
+	out_ingress_valve_b,
+	out_process_valve_b,
+	in_sensor_hi_b,
+	in_aq_sensor_lo,
+	persist_state_tank_b,
+	in_process_mutex,
+};
 
 auto aqueduct_sm = AqueductSM<decltype(out_aq_ingress_valve),
 							  decltype(out_aq_pump),
