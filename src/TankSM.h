@@ -1,6 +1,7 @@
 #pragma once
 #include "Edge.h"
 #include "Log.h"
+#include "Mutex.h"
 #include "Timer.h"
 
 using namespace kev::literals;
@@ -21,7 +22,8 @@ enum struct TankState {
 	CHEM_1,
 	WAITING_CHEM_2,
 	CHEM_2,
-	WAITING_IN_USE,
+	WAITING_IN_PROCESS,
+	IN_PROCESS,
 
 	LAST,
 };
@@ -29,6 +31,7 @@ enum struct TankState {
 template <class OutFillPump,
 		  class OutRecirPump,
 		  class OutIngressValve,
+		  class OutProcessValve,
 		  class InSensorHi,
 		  class StateSaver>
 struct TankSM {
@@ -36,12 +39,15 @@ struct TankSM {
 		   OutFillPump& out_fill_pump,
 		   OutRecirPump& out_recir_pump,
 		   OutIngressValve& out_ingress_valve,
+		   OutProcessValve& out_process_valve,
 		   InSensorHi& in_sensor_hi,
-		   StateSaver& state_saver)
+		   StateSaver& state_saver,
+		   Mutex& in_process_mutex)
 		: log{name},
 		  out_fill_pump{out_fill_pump},
 		  out_recir_pump{out_recir_pump},
 		  out_ingress_valve{out_ingress_valve},
+		  out_process_valve{out_process_valve},
 		  in_sensor_hi{in_sensor_hi},
 		  state_saver{state_saver} {}
 
@@ -50,7 +56,9 @@ struct TankSM {
 		case TankState::INITIAL: set_state(TankState::PRE_FILL); break;
 		case TankState::WAITING_CHEM_1: set_state(TankState::CHEM_1); break;
 		case TankState::WAITING_CHEM_2: set_state(TankState::CHEM_2); break;
-		case TankState::WAITING_IN_USE: set_state(TankState::INITIAL); break;
+		case TankState::WAITING_IN_PROCESS:
+			set_state(TankState::INITIAL);
+			break;
 		default: log("Ignoring event_next in state ", state_text()); break;
 		}
 	}
@@ -72,7 +80,7 @@ struct TankSM {
 			set_state(TankState::WAITING_CHEM_2);
 			break;
 		case TankState::WAITING_CHEM_2:
-			set_state(TankState::WAITING_IN_USE);
+			set_state(TankState::WAITING_IN_PROCESS);
 			break;
 		default:
 			log("Ignoring event_force_next_stage in state ", state_text());
@@ -82,12 +90,14 @@ struct TankSM {
 
 	auto event_force_prev_stage() -> void {
 		switch (state) {
-		case TankState::INITIAL: set_state(TankState::WAITING_IN_USE); break;
+		case TankState::INITIAL:
+			set_state(TankState::WAITING_IN_PROCESS);
+			break;
 		case TankState::WAITING_CHEM_1: set_state(TankState::INITIAL); break;
 		case TankState::WAITING_CHEM_2:
 			set_state(TankState::WAITING_CHEM_1);
 			break;
-		case TankState::WAITING_IN_USE:
+		case TankState::WAITING_IN_PROCESS:
 			set_state(TankState::WAITING_CHEM_2);
 			break;
 		default:
@@ -215,7 +225,7 @@ struct TankSM {
 		}; break;
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
-		case TankState::WAITING_IN_USE: stop_all(); break;
+		case TankState::WAITING_IN_PROCESS: stop_all(); break;
 		case TankState::LAST: log("Error, state LAST should not be set");
 		}
 
@@ -251,7 +261,7 @@ struct TankSM {
 		case TankState::INITIAL:
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
-		case TankState::WAITING_IN_USE: break;
+		case TankState::WAITING_IN_PROCESS: break;
 		case TankState::LAST: log("Error, state LAST should not be set");
 		}
 	}
@@ -277,7 +287,7 @@ struct TankSM {
 		return state == TankState::INITIAL ||
 			   state == TankState::WAITING_CHEM_1 ||
 			   state == TankState::WAITING_CHEM_2 ||
-			   state == TankState::WAITING_IN_USE;
+			   state == TankState::WAITING_IN_PROCESS;
 	}
 
 	auto persist_state() -> void {
@@ -293,7 +303,7 @@ struct TankSM {
 		case TankState::CHEM_1: return "CHEM_1";
 		case TankState::WAITING_CHEM_2: return "WAITING_CHEM_2";
 		case TankState::CHEM_2: return "CHEM_2";
-		case TankState::WAITING_IN_USE: return "WAITING_IN_USE";
+		case TankState::WAITING_IN_PROCESS: return "WAITING_IN_USE";
 		case TankState::LAST: return "LAST (ERROR)";
 		}
 		return "INVALID";
@@ -304,8 +314,10 @@ struct TankSM {
 	OutFillPump& out_fill_pump;
 	OutRecirPump& out_recir_pump;
 	OutIngressValve& out_ingress_valve;
+	OutProcessValve& out_process_valve;
 	InSensorHi& in_sensor_hi;
 	StateSaver& state_saver;
+	Mutex& in_process_mutex;
 
 	Edge<InSensorHi> in_sensor_hi_edge{in_sensor_hi};
 

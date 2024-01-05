@@ -4,6 +4,7 @@ constexpr auto version = "Version 1.0 (03/Ene/2024)";
 #include "AqueductSM.h"
 #include "DirectIO.h"
 #include "HardwareSerial.h"
+#include "Mutex.h"
 #include "Persist.h"
 #include "SharedOutput.h"
 #include "TankSM.h"
@@ -23,12 +24,16 @@ auto out_fill_pump_shared_a =
 auto out_fill_pump_shared_b =
 	SharedOutputB<decltype(out_fill_pump_shared)>{out_fill_pump_shared};
 
+auto in_process_mutex = Mutex{};
+
 auto out_recir_pump_a = OutputLow<29>{};
 auto out_ingress_valve_a = OutputLow<23>{};
+auto out_process_valve_a = OutputLow<10>{};
 auto in_sensor_hi_a = InputLow<22>{};
 
 auto out_recir_pump_b = OutputLow<31>{};
 auto out_ingress_valve_b = OutputLow<25>{};
+auto out_process_valve_b = OutputLow<11>{};
 auto in_sensor_hi_b = InputLow<24>{};
 
 auto out_aq_ingress_valve = OutputLow<27>{};

@@ -305,7 +305,7 @@ struct UiSm {
 		case TankState::CHEM_2: return "Recirculando hipoclorito de sodio";
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
-		case TankState::WAITING_IN_USE: return "Esperando confirmacion";
+		case TankState::WAITING_IN_PROCESS: return "Esperando confirmacion";
 		case TankState::LAST: return "Error de programa, informar";
 		}
 		return "Error de programa, informar";
@@ -334,7 +334,7 @@ struct UiSm {
 		case TankState::WAITING_CHEM_1:
 			return "Confirmar hidroxicloruro de aluminio";
 		case TankState::WAITING_CHEM_2: return "Confirmar hipoclorito de sodio";
-		case TankState::WAITING_IN_USE: return "Confirmar tanque vacio";
+		case TankState::WAITING_IN_PROCESS: return "Confirmar tanque vacio";
 		case TankState::LAST: return "Error de programa, informar";
 		}
 		return "Error de programa, informar";
@@ -359,7 +359,7 @@ struct UiSm {
 		case TankState::CHEM_2: return "";
 		case TankState::WAITING_CHEM_1:
 		case TankState::WAITING_CHEM_2:
-		case TankState::WAITING_IN_USE: return "Confirmar";
+		case TankState::WAITING_IN_PROCESS: return "Confirmar";
 		case TankState::LAST: return "Error de programa, informar";
 		}
 		return "Error de programa, informar";
