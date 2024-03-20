@@ -1,4 +1,4 @@
-constexpr auto version = "Version 1.1 (05/Ene/2024)";
+constexpr auto version = "Version 1.2 (19/Mar/2024)";
 
 #include <Arduino.h>
 #include "AqueductSM.h"
@@ -95,7 +95,7 @@ auto ui_serial =
 		tank_a_sm, tank_b_sm, aqueduct_sm};
 
 auto log_ = Log<>{"main"};
-auto log_timer = kev::Timer{1_s};
+auto log_timer = kev::Timer{2_s};
 
 auto led(Timestamp now) -> void;
 auto serial_log(Timestamp now) -> void;

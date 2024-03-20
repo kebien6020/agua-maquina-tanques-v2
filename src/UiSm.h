@@ -208,8 +208,6 @@ struct UiSm {
 		serial.print(".val=");
 		serial.print(val ? 1 : 0);
 		serial.print("\xFF\xFF\xFF");
-
-		recvRetCommandFinished(serial);
 	}
 
 	auto event_next() -> void {
