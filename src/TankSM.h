@@ -143,7 +143,8 @@ struct TankSM {
 		log.partial(in_aq_sensor_lo_edge.value() ? "LO " : "   ");
 		log.partial(", Out: ", out_fill_pump ? "FIL " : "    ",
 					out_ingress_valve ? "VAL " : "    ",
-					out_recir_pump ? "RCR " : "    ");
+					out_recir_pump ? "RCR " : "    ",
+					out_process_valve ? "PRO " : "    ");
 		if (state == TankState::PRE_FILL) {
 			log.partial(", Pre-fill timer = ", pre_fill_timer.elapsedSec(now),
 						"/", pre_fill_timer.totalSec());
