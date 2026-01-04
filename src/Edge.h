@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Log.h"
+#include "Time.h"
 namespace kev {
 
 template <class Reader>
@@ -31,6 +33,56 @@ class Edge {
 	Reader& reader;
 	bool prev;
 	bool curr;
+};
+
+template <class Reader>
+class EdgeDebounced {
+   public:
+	EdgeDebounced(Reader& reader,
+				  Duration dur,
+				  bool prev = false,
+				  bool curr = false)
+		: reader{reader}, dur{dur}, prev{prev}, curr{curr}, lastRaw{prev} {}
+
+	auto update(Timestamp now) -> void {
+		bool raw = reader.read();
+
+		if (raw != lastRaw) {
+			lastChange = now;
+			lastRaw = raw;
+			log("Raw changed to ", raw ? "HIGH" : "LOW",
+				", starting debounce timer");
+		}
+
+		if ((now - lastChange) >= dur && raw != curr) {
+			prev = curr;
+			curr = raw;
+			log("Debounced to ", curr ? "HIGH" : "LOW");
+		}
+	}
+
+	auto risingEdge() -> bool {
+		auto const retval = changed() && curr;
+		return retval;
+	}
+
+	auto fallingEdge() -> bool {
+		auto const retval = changed() && !curr;
+		return retval;
+	}
+
+	auto changed() -> bool { return prev != curr; }
+
+	auto value() -> bool { return curr; }
+
+   private:
+	Reader& reader;
+	Duration dur;
+	Timestamp lastChange = 0;
+	Log<> log{"EdgeDebounced"};
+	bool prev;
+	bool curr;
+	bool lastRaw;
 };
 
 }  // namespace kev

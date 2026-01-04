@@ -6,7 +6,7 @@
 #include "Timer.h"
 
 using namespace kev::literals;
-using kev::Edge;
+using kev::EdgeDebounced;
 using kev::Timer;
 using kev::Timestamp;
 
@@ -51,8 +51,8 @@ struct TankSM {
 		  out_recir_pump{out_recir_pump},
 		  out_ingress_valve{out_ingress_valve},
 		  out_process_valve{out_process_valve},
-		  in_sensor_hi_edge{in_sensor_hi},
-		  in_aq_sensor_lo_edge{in_aq_sensor_lo},
+		  in_sensor_hi_edge{in_sensor_hi, 5_s},
+		  in_aq_sensor_lo_edge{in_aq_sensor_lo, 5_s},
 		  state_saver{state_saver},
 		  in_process_mutex{in_process_mutex} {}
 
@@ -128,7 +128,7 @@ struct TankSM {
 	}
 
 	auto tick(Timestamp now) -> void {
-		in_sensor_hi_edge.update();
+		in_sensor_hi_edge.update(now);
 
 		if (changed()) {
 			handle_state_changed(now);
@@ -349,8 +349,8 @@ struct TankSM {
 	OutRecirPump& out_recir_pump;
 	OutIngressValve& out_ingress_valve;
 	OutProcessValve& out_process_valve;
-	Edge<InSensorHi> in_sensor_hi_edge;
-	Edge<InAqSensorLo> in_aq_sensor_lo_edge;
+	EdgeDebounced<InSensorHi> in_sensor_hi_edge;
+	EdgeDebounced<InAqSensorLo> in_aq_sensor_lo_edge;
 	StateSaver& state_saver;
 	Mutex& in_process_mutex;
 
