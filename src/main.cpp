@@ -1,4 +1,4 @@
-constexpr auto version = "Version 1.4 (01/Ene/2026)";
+constexpr auto version = "Version 1.5 (04/Ene/2026)";
 
 #include <Arduino.h>
 #include "AqueductSM.h"
@@ -117,7 +117,7 @@ auto main() -> int {
 
 		tank_a_sm.tick(now);
 		tank_b_sm.tick(now);
-		aqueduct_sm.tick();
+		aqueduct_sm.tick(now);
 		ui.tick(now);
 		ui_serial.tick();
 

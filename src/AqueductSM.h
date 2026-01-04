@@ -2,8 +2,11 @@
 
 #include "Edge.h"
 #include "Log.h"
+#include "Time.h"
 
-using kev::Edge;
+using kev::EdgeDebounced;
+using kev::Timestamp;
+using namespace kev::literals;
 
 enum class AqState {
 	STOPPED,
@@ -18,10 +21,10 @@ struct AqueductSM {
 			   InLevelHi& in_level_hi)
 		: out_ingress_valve{out_ingress_valve},
 		  out_pump{out_pump},
-		  in_level_hi_edge{in_level_hi} {}
+		  in_level_hi_edge{in_level_hi, 5_s} {}
 
-	auto tick() -> void {
-		in_level_hi_edge.update();
+	auto tick(Timestamp now) -> void {
+		in_level_hi_edge.update(now);
 
 		if (in_level_hi_edge.risingEdge()) {
 			event_sensor_hi();
@@ -125,7 +128,7 @@ struct AqueductSM {
 
 	OutIngressValve& out_ingress_valve;
 	OutPump& out_pump;
-	Edge<InLevelHi> in_level_hi_edge;
+	EdgeDebounced<InLevelHi> in_level_hi_edge;
 
 	Log<> log = Log<>{"aqueduct"};
 
