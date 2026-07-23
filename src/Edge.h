@@ -35,17 +35,19 @@ class Edge {
 	bool curr;
 };
 
+// Updated 2026-07-23
 template <class Reader>
 class EdgeDebounced {
    public:
 	EdgeDebounced(Reader& reader,
 				  Duration dur,
-				  bool prev = false,
 				  bool curr = false)
-		: reader{reader}, dur{dur}, prev{prev}, curr{curr}, lastRaw{prev} {}
+		: reader{reader}, dur{dur}, curr{curr}, lastRaw{curr} {}
 
 	auto update(Timestamp now) -> void {
 		bool raw = reader.read();
+		// Reset changed on every update
+		_changed = false;
 
 		if (raw != lastRaw) {
 			lastChange = now;
@@ -55,33 +57,28 @@ class EdgeDebounced {
 		}
 
 		if ((now - lastChange) >= dur && raw != curr) {
-			prev = curr;
 			curr = raw;
+			// Keep it as true for a single tick
+			_changed = true;
 			log("Debounced to ", curr ? "HIGH" : "LOW");
 		}
 	}
 
-	auto risingEdge() -> bool {
-		auto const retval = changed() && curr;
-		return retval;
-	}
+	auto risingEdge() const -> bool { return _changed && curr; }
 
-	auto fallingEdge() -> bool {
-		auto const retval = changed() && !curr;
-		return retval;
-	}
+	auto fallingEdge() const -> bool { return _changed && !curr; }
 
-	auto changed() -> bool { return prev != curr; }
+	auto changed() const -> bool { return _changed; }
 
-	auto value() -> bool { return curr; }
+	auto value() const -> bool { return curr; }
 
    private:
 	Reader& reader;
 	Duration dur;
 	Timestamp lastChange = 0;
-	Log<> log{"EdgeDebounced"};
-	bool prev;
+	Log<false> log{"EdgeDebounced"};
 	bool curr;
+	bool _changed = false;
 	bool lastRaw;
 };
 

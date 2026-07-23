@@ -1,4 +1,4 @@
-constexpr auto version = "Version 1.5 (04/Ene/2026)";
+constexpr auto version = "Version 1.6 (23/Jul/2026)";
 
 #include <Arduino.h>
 #include "AqueductSM.h"

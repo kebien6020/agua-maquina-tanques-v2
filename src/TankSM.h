@@ -11,7 +11,7 @@ using kev::Timer;
 using kev::Timestamp;
 
 constexpr auto TIME_PRE_FILL = 3_s;
-constexpr auto TIME_FILL_FAILSAFE = 27_min;
+constexpr auto TIME_FILL_FAILSAFE = 90_min;
 constexpr auto TIME_CHEM1 = 40_min;
 constexpr auto TIME_CHEM2 = 5_min;
 
